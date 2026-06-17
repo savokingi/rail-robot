@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Serial Control</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #111;
+            color: #0f0;
+        }
+        input {
+            background: #222;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 5px;
+            width: 60px;
+            font-family: monospace;
+            text-align: center;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #0c0;
+        }
+        #output {
+            margin-top: 20px;
+            border: 1px solid #0f0;
+            padding: 10px;
+            min-height: 200px;
+            white-space: pre-wrap;
+            background: #0a0a0a;
+        }
+        .row {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 80px;
+        }
+        .hint {
+            color: #555;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Управление датчиками</h2>
+    
+    <div class="row">
+        <label>Датчик:</label>
+        <input type="text" id="name" value="T" maxlength="1">
+        <span class="hint">T, P, G, D</span>
+    </div>
+    <div class="row">
+        <label>Номер:</label>
+        <input type="text" id="num" value="0" maxlength="1">
+        <span class="hint">0, 1</span>
+    </div>
+    <div class="row">
+        <label>Команда:</label>
+        <input type="text" id="cmd" value="M" maxlength="1">
+        <span class="hint">M — измерить, R — готовность</span>
+    </div>
+    
+    <button onclick="send()">Отправить</button>
+    
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        const API_URL = 'http://localhost:3000';
+        let lastResponse = '';
+        
+        function log(msg) {
+            output.textContent += msg + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        async function send() {
+            const name = document.getElementById('name').value.toUpperCase();
+            const num = document.getElementById('num').value;
+            const cmd = document.getElementById('cmd').value.toUpperCase();
+            
+            log('>> |' + name + num + ':' + cmd + ';');
+            
+            try {
+                await fetch(API_URL + '/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, num, cmd })
+                });
+            } catch (e) {
+                log('ОШИБКА: ' + e.message);
+            }
+        }
+
+        setInterval(async () => {
+            try {
+                const res = await fetch(API_URL + '/response');
+                const data = await res.json();
+                if (data.response && data.response !== lastResponse) {
+                    lastResponse = data.response;
+                    log('<< ' + data.response);
+                }
+            } catch (e) {
+                // сервер не отвечает, молчим
+            }
+        }, 500);
+    </script>
+</body>
+</html>
