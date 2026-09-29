@@ -1,0 +1,16 @@
+{
+  "name": "rail-robot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Панель мониторинга и управления железнодорожным роботом",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "serialport": "13.0.0"
+  }
+}

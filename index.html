@@ -2,14 +2,279 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Serial Control</title>
+    <title>Rail Robot</title>
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: monospace;
+            background: #0a0a0a;
+            color: #0f0;
             padding: 20px;
+        }
+        
+        h2 {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 10px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .sensor-card {
+            border: 1px solid #0f0;
+            padding: 15px;
+            background: #111;
+        }
+        
+        .sensor-card h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #0f0;
+        }
+        
+        .sensor-value {
+            font-size: 32px;
+            font-weight: bold;
+            min-height: 40px;
+        }
+        
+        .sensor-status {
+            font-size: 12px;
+            color: #555;
+            margin-top: 5px;
+        }
+        
+        .waiting {
+            color: #aa0;
+        }
+        
+        .ready {
+            color: #0f0;
+        }
+        
+        .error {
+            color: #f00;
+        }
+        
+        .manual {
+            border-top: 1px solid #0f0;
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+        
+        .manual summary {
+            display: inline-block;
+            background: #0f0;
+            color: #000;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: bold;
+            list-style: none;
+            user-select: none;
+        }
+
+        .manual summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .manual summary:hover {
+            background: #0c0;
+        }
+
+        .manual summary:focus-visible {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
+
+        .manual summary::before {
+            content: '+ ';
+        }
+
+        .manual[open] summary::before {
+            content: '− ';
+        }
+
+        .manual-content {
+            margin-top: 15px;
+        }
+
+        .movement {
+            border: 1px solid #0f0;
+            padding: 15px;
+            margin: 20px 0;
+            background: #111;
+        }
+
+        .movement h3 {
+            margin-bottom: 15px;
+        }
+
+        .movement-controls {
+            display: flex;
+            gap: 15px;
+        }
+
+        .movement-button {
+            flex: 1;
+            min-height: 64px;
+            font-size: 18px;
+            border: 1px solid #0f0;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .movement-button:active,
+        .movement-button.active {
+            background: #080;
+            color: #fff;
+        }
+
+        .movement-status {
+            margin-top: 12px;
+            color: #555;
+            font-size: 12px;
+        }
+
+        .movement-status.moving {
+            color: #0f0;
+        }
+
+        .movement-status.failed {
+            color: #f00;
+        }
+
+        .map-panel {
+            border: 1px solid #0f0;
+            padding: 15px;
+            margin: 20px 0;
+            background: #111;
+        }
+
+        .map-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 12px;
+        }
+
+        .map-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border: 1px solid currentColor;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .legend-ok {
+            color: #0f0;
+        }
+
+        .legend-fail {
+            color: #f33;
+        }
+
+        .legend-robot {
+            color: #0ff;
+        }
+
+        #map {
+            width: 100%;
+            height: 420px;
+            border: 1px solid #0f0;
+            background-color: #0a0a0a;
+            background-image:
+                linear-gradient(#153015 1px, transparent 1px),
+                linear-gradient(90deg, #153015 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        .map-note {
+            margin-top: 10px;
+            color: #777;
+            font-size: 12px;
+        }
+
+        .leaflet-bar a,
+        .leaflet-bar a:hover {
+            background: #111;
+            color: #0f0;
+            border-color: #0f0;
+        }
+
+        .leaflet-control-zoom {
+            border: 1px solid #0f0 !important;
+        }
+
+        .leaflet-popup-content-wrapper,
+        .leaflet-popup-tip {
             background: #111;
             color: #0f0;
         }
+
+        .leaflet-popup-content-wrapper {
+            border: 1px solid #0f0;
+            border-radius: 0;
+        }
+
+        .leaflet-popup-content {
+            margin: 12px;
+            font-family: monospace;
+            line-height: 1.5;
+        }
+
+        .leaflet-popup-content h4 {
+            margin-bottom: 6px;
+        }
+
+        .leaflet-container a.leaflet-popup-close-button {
+            color: #0f0;
+        }
+
+        @media (max-width: 700px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .map-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            #map {
+                height: 340px;
+            }
+        }
+        
+        .row {
+            margin: 10px 0;
+        }
+        
         input {
             background: #222;
             color: #0f0;
@@ -19,6 +284,7 @@
             font-family: monospace;
             text-align: center;
         }
+        
         button {
             background: #0f0;
             color: #000;
@@ -28,63 +294,422 @@
             font-family: monospace;
             font-weight: bold;
         }
+        
         button:hover {
             background: #0c0;
         }
-        #output {
+
+        button:focus-visible {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
+        
+        #log {
             margin-top: 20px;
             border: 1px solid #0f0;
             padding: 10px;
-            min-height: 200px;
-            white-space: pre-wrap;
+            height: 200px;
+            overflow-y: auto;
             background: #0a0a0a;
-        }
-        .row {
-            margin: 10px 0;
-        }
-        label {
-            display: inline-block;
-            width: 80px;
-        }
-        .hint {
-            color: #555;
             font-size: 12px;
-            margin-top: 5px;
+            white-space: pre-wrap;
         }
     </style>
 </head>
 <body>
-    <h2>Управление датчиками</h2>
-    
-    <div class="row">
-        <label>Датчик:</label>
-        <input type="text" id="name" value="T" maxlength="1">
-        <span class="hint">T, P, G, D</span>
-    </div>
-    <div class="row">
-        <label>Номер:</label>
-        <input type="text" id="num" value="0" maxlength="1">
-        <span class="hint">0, 1</span>
-    </div>
-    <div class="row">
-        <label>Команда:</label>
-        <input type="text" id="cmd" value="M" maxlength="1">
-        <span class="hint">M — измерить, R — готовность</span>
-    </div>
-    
-    <button onclick="send()">Отправить</button>
-    
-    <div id="output"></div>
+    <h2>Мониторинг датчиков рельсов</h2>
 
+    <div class="movement">
+        <h3>Управление движением</h3>
+        <div class="movement-controls">
+            <button class="movement-button" type="button" data-direction="forward">
+                Вперёд
+            </button>
+            <button class="movement-button" type="button" data-direction="backward">
+                Назад
+            </button>
+        </div>
+        <div class="movement-status" id="movement-status" role="status" aria-live="polite">
+            остановлен
+        </div>
+    </div>
+    
+    <div class="grid">
+        <div class="sensor-card" id="card-T0">
+            <h3>Твердость — Левый (T0)</h3>
+            <div class="sensor-value" id="val-T0">—</div>
+            <div class="sensor-status" id="stat-T0">ожидание</div>
+        </div>
+        
+        <div class="sensor-card" id="card-T1">
+            <h3>Твердость — Правый (T1)</h3>
+            <div class="sensor-value" id="val-T1">—</div>
+            <div class="sensor-status" id="stat-T1">ожидание</div>
+        </div>
+        
+        <div class="sensor-card" id="card-P0">
+            <h3>Подуклон — Левый (P0)</h3>
+            <div class="sensor-value" id="val-P0">—</div>
+            <div class="sensor-status" id="stat-P0">ожидание</div>
+        </div>
+        
+        <div class="sensor-card" id="card-P1">
+            <h3>Подуклон — Правый (P1)</h3>
+            <div class="sensor-value" id="val-P1">—</div>
+            <div class="sensor-status" id="stat-P1">ожидание</div>
+        </div>
+        
+        <div class="sensor-card" id="card-G0">
+            <h3>Газ (G0)</h3>
+            <div class="sensor-value" id="val-G0">—</div>
+            <div class="sensor-status" id="stat-G0">ожидание</div>
+        </div>
+        
+        <div class="sensor-card" id="card-D0">
+            <h3>Звук — Левый (D0)</h3>
+            <div class="sensor-value" id="val-D0">—</div>
+            <div class="sensor-status" id="stat-D0">ожидание</div>
+        </div>
+        
+        <div class="sensor-card" id="card-D1">
+            <h3>Звук — Правый (D1)</h3>
+            <div class="sensor-value" id="val-D1">—</div>
+            <div class="sensor-status" id="stat-D1">ожидание</div>
+        </div>
+    </div>
+
+    <section class="map-panel">
+        <div class="map-header">
+            <h3>Карта маршрута</h3>
+            <div class="map-legend" aria-label="Обозначения карты">
+                <span class="legend-item legend-ok"><span class="legend-dot"></span>норма</span>
+                <span class="legend-item legend-fail"><span class="legend-dot"></span>не норма</span>
+                <span class="legend-item legend-robot"><span class="legend-dot"></span>робот</span>
+            </div>
+        </div>
+        <div id="map" aria-label="Пройденный маршрут и точки замеров"></div>
+        <div class="map-note" id="map-note">Демонстрационный маршрут — ожидаются данные GPS</div>
+    </section>
+
+    <details class="manual">
+        <summary>Ручное управление</summary>
+        <div class="manual-content">
+        <div class="row">
+            <label>Датчик:</label>
+            <input type="text" id="name" value="T" maxlength="1">
+            <span style="color: #555; font-size: 12px;">T, P, G, D</span>
+        </div>
+        <div class="row">
+            <label>Номер:</label>
+            <input type="text" id="num" value="0" maxlength="1">
+            <span style="color: #555; font-size: 12px;">0, 1</span>
+        </div>
+        <div class="row">
+            <label>Команда:</label>
+            <input type="text" id="cmd" value="M" maxlength="1">
+            <span style="color: #555; font-size: 12px;">M — измерить, R — готовность</span>
+        </div>
+        <button onclick="send()">Отправить</button>
+        </div>
+    </details>
+    
+    <div id="log"></div>
+
+    <script src="vendor/leaflet/leaflet.js"></script>
     <script>
-        const output = document.getElementById('output');
-        const API_URL = 'http://localhost:3000';
-        let lastResponse = '';
+        const logEl = document.getElementById('log');
         
         function log(msg) {
-            output.textContent += msg + '\n';
-            output.scrollTop = output.scrollHeight;
+            const time = new Date().toLocaleTimeString();
+            logEl.textContent += `[${time}] ${msg}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
         }
+
+        const mapNote = document.getElementById('map-note');
+        const map = L.map('map', {
+            attributionControl: false,
+            zoomAnimation: false
+        });
+        const trackLayer = L.layerGroup().addTo(map);
+        const transparentTile =
+            'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+        let localTileLoaded = false;
+
+        L.tileLayer('tiles/{z}/{x}/{y}.png', {
+            minZoom: 1,
+            maxZoom: 19,
+            errorTileUrl: transparentTile
+        }).on('tileload', () => {
+            if (localTileLoaded) return;
+            localTileLoaded = true;
+            mapNote.textContent = 'Локальная офлайн-карта загружена';
+        }).addTo(map);
+
+        const demoTrack = {
+            path: [
+                { lat: 55.75110, lon: 37.61220 },
+                { lat: 55.75220, lon: 37.61800 },
+                { lat: 55.75400, lon: 37.62400 },
+                { lat: 55.75700, lon: 37.63000 },
+                { lat: 55.76000, lon: 37.63800 }
+            ],
+            currentPosition: { lat: 55.76000, lon: 37.63800 },
+            measurements: [
+                {
+                    id: 'M-001', lat: 55.75220, lon: 37.61800,
+                    status: 'ok', measuredAt: '10:12:04',
+                    values: { T0: 640, P0: 12, G0: 95 }
+                },
+                {
+                    id: 'M-002', lat: 55.75400, lon: 37.62400,
+                    status: 'fail', measuredAt: '10:14:18',
+                    values: { T0: 812, P0: 46, G0: 108 }
+                },
+                {
+                    id: 'M-003', lat: 55.75700, lon: 37.63000,
+                    status: 'ok', measuredAt: '10:17:31',
+                    values: { T0: 625, P0: 15, G0: 91 }
+                }
+            ]
+        };
+
+        function isValidCoordinate(point) {
+            return point && Number.isFinite(Number(point.lat)) &&
+                Number.isFinite(Number(point.lon));
+        }
+
+        function createMeasurementPopup(measurement) {
+            const container = document.createElement('div');
+            const title = document.createElement('h4');
+            const status = document.createElement('div');
+            const time = document.createElement('div');
+            const coordinates = document.createElement('div');
+
+            title.textContent = 'Замер ' + (measurement.id || '');
+            status.textContent = measurement.status === 'ok' ? 'Статус: норма' : 'Статус: не норма';
+            status.style.color = measurement.status === 'ok' ? '#0f0' : '#f33';
+            time.textContent = 'Время: ' + (measurement.measuredAt || '—');
+            coordinates.textContent =
+                'GPS: ' + Number(measurement.lat).toFixed(6) + ', ' +
+                Number(measurement.lon).toFixed(6);
+
+            container.append(title, status, time, coordinates);
+
+            if (measurement.values && typeof measurement.values === 'object') {
+                Object.entries(measurement.values).forEach(([name, value]) => {
+                    const row = document.createElement('div');
+                    row.textContent = name + ': ' + value;
+                    container.append(row);
+                });
+            }
+
+            return container;
+        }
+
+        function renderTrack(track, demo = false) {
+            trackLayer.clearLayers();
+
+            const pathPoints = (track.path || [])
+                .filter(isValidCoordinate)
+                .map(point => [Number(point.lat), Number(point.lon)]);
+            const boundsPoints = [...pathPoints];
+
+            if (pathPoints.length > 1) {
+                L.polyline(pathPoints, {
+                    color: '#0f0',
+                    weight: 5,
+                    opacity: 0.9
+                }).addTo(trackLayer);
+            }
+
+            (track.measurements || []).filter(isValidCoordinate).forEach(measurement => {
+                const isOk = measurement.status === 'ok';
+                const point = [Number(measurement.lat), Number(measurement.lon)];
+
+                const marker = L.circleMarker(point, {
+                    radius: 8,
+                    color: isOk ? '#0f0' : '#f33',
+                    fillColor: isOk ? '#0f0' : '#f33',
+                    fillOpacity: 0.85,
+                    weight: 2
+                })
+                    .bindPopup(createMeasurementPopup(measurement))
+                    .addTo(trackLayer);
+                const markerElement = marker.getElement();
+                if (markerElement) {
+                    markerElement.setAttribute(
+                        'aria-label',
+                        'Замер ' + (measurement.id || '') + ': ' +
+                            (isOk ? 'норма' : 'не норма')
+                    );
+                    markerElement.setAttribute('tabindex', '0');
+                }
+                boundsPoints.push(point);
+            });
+
+            if (isValidCoordinate(track.currentPosition)) {
+                const robotPoint = [
+                    Number(track.currentPosition.lat),
+                    Number(track.currentPosition.lon)
+                ];
+
+                const robotMarker = L.circleMarker(robotPoint, {
+                    radius: 10,
+                    color: '#fff',
+                    fillColor: '#0ff',
+                    fillOpacity: 1,
+                    weight: 3
+                }).bindTooltip('Робот').addTo(trackLayer);
+                const robotElement = robotMarker.getElement();
+                if (robotElement) robotElement.setAttribute('aria-label', 'Текущее положение робота');
+                boundsPoints.push(robotPoint);
+            }
+
+            if (boundsPoints.length) {
+                map.fitBounds(L.latLngBounds(boundsPoints), {
+                    padding: [40, 40],
+                    maxZoom: 17
+                });
+            }
+
+            if (demo) {
+                mapNote.textContent = 'Демонстрационный маршрут — ожидаются данные GPS';
+            } else if (!localTileLoaded) {
+                mapNote.textContent = 'GPS подключён · локальные тайлы пока не загружены';
+            }
+        }
+
+        async function loadTrack() {
+            try {
+                const response = await fetch('/track', { cache: 'no-store' });
+                if (!response.ok) return false;
+
+                const track = await response.json();
+                if (!Array.isArray(track.path) || track.path.length === 0) return false;
+
+                renderTrack(track);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        renderTrack(demoTrack, true);
+        loadTrack().then(connected => {
+            if (connected) setInterval(loadTrack, 1000);
+        });
+
+        function updateSensor(name, num, value, status) {
+            const id = name + num;
+            const valEl = document.getElementById('val-' + id);
+            const statEl = document.getElementById('stat-' + id);
+            
+            if (!valEl || !statEl) return;
+            
+            if (status === 'measuring') {
+                valEl.textContent = '...';
+                valEl.className = 'sensor-value waiting';
+                statEl.textContent = 'измерение...';
+                statEl.className = 'sensor-status waiting';
+            } else if (status === 'ready') {
+                valEl.textContent = value;
+                valEl.className = 'sensor-value ready';
+                statEl.textContent = 'готово';
+                statEl.className = 'sensor-status ready';
+            } else if (status === 'error') {
+                valEl.textContent = 'ERR';
+                valEl.className = 'sensor-value error';
+                statEl.textContent = 'ошибка';
+                statEl.className = 'sensor-status error';
+            }
+        }
+
+        const movementButtons = document.querySelectorAll('.movement-button');
+        const movementStatus = document.getElementById('movement-status');
+        let activeDirection = null;
+
+        function setMovementStatus(text, className = '') {
+            movementStatus.textContent = text;
+            movementStatus.className = 'movement-status' + (className ? ' ' + className : '');
+        }
+
+        async function sendMovement(command) {
+            try {
+                const response = await fetch('/' + command, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    keepalive: command === 'stop'
+                });
+
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+
+                log('>> движение: ' + command);
+                return true;
+            } catch (e) {
+                log('ОШИБКА ДВИЖЕНИЯ: ' + e.message);
+                setMovementStatus('ошибка команды', 'failed');
+                return false;
+            }
+        }
+
+        function startMovement(button, pointerId) {
+            if (activeDirection) return;
+
+            activeDirection = button.dataset.direction;
+            button.classList.add('active');
+
+            if (pointerId !== undefined) {
+                button.setPointerCapture(pointerId);
+            }
+
+            setMovementStatus(
+                activeDirection === 'forward' ? 'движение вперёд' : 'движение назад',
+                'moving'
+            );
+            sendMovement(activeDirection);
+        }
+
+        function stopMovement() {
+            if (!activeDirection) return;
+
+            activeDirection = null;
+            movementButtons.forEach(button => button.classList.remove('active'));
+            setMovementStatus('остановлен');
+            sendMovement('stop');
+        }
+
+        movementButtons.forEach(button => {
+            button.addEventListener('pointerdown', event => {
+                event.preventDefault();
+                startMovement(button, event.pointerId);
+            });
+            button.addEventListener('pointerup', stopMovement);
+            button.addEventListener('pointercancel', stopMovement);
+            button.addEventListener('lostpointercapture', stopMovement);
+            button.addEventListener('pointerleave', event => {
+                if (event.pointerType === 'mouse') stopMovement();
+            });
+            button.addEventListener('contextmenu', event => event.preventDefault());
+            button.addEventListener('keydown', event => {
+                if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
+                    event.preventDefault();
+                    startMovement(button);
+                }
+            });
+            button.addEventListener('keyup', event => {
+                if (event.key === ' ' || event.key === 'Enter') {
+                    event.preventDefault();
+                    stopMovement();
+                }
+            });
+        });
+
+        window.addEventListener('blur', stopMovement);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stopMovement();
+        });
 
         async function send() {
             const name = document.getElementById('name').value.toUpperCase();
@@ -94,7 +719,7 @@
             log('>> |' + name + num + ':' + cmd + ';');
             
             try {
-                await fetch(API_URL + '/send', {
+                await fetch('/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, num, cmd })
@@ -104,18 +729,34 @@
             }
         }
 
+        // Опрашиваем сервер каждые 300 мс
+        let lastResponse = '';
+        
         setInterval(async () => {
             try {
-                const res = await fetch(API_URL + '/response');
+                const res = await fetch('/response');
                 const data = await res.json();
-                if (data.response && data.response !== lastResponse) {
-                    lastResponse = data.response;
-                    log('<< ' + data.response);
+                
+                if (!data.response || data.response === lastResponse) return;
+                lastResponse = data.response;
+                
+                log('<< ' + data.response);
+                
+                const match = data.response.match(/\|([TPGD])([01]):([MR\d]+);/);
+                if (!match) return;
+                
+                const [, name, num, value] = match;
+                
+                if (value === 'M') {
+                    updateSensor(name, num, null, 'measuring');
+                } else {
+                    updateSensor(name, num, value, 'ready');
                 }
+                
             } catch (e) {
-                // сервер не отвечает, молчим
+                // сервер не отвечает
             }
-        }, 500);
+        }, 300);
     </script>
 </body>
 </html>
