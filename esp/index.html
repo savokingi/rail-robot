@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP8266 Управление</title>
+</head>
+<body>
+  <h1>Управление</h1>
+
+  <p>
+    <button onmousedown="fetch('/forward')"
+            onmouseup="fetch('/stop')"
+            onmouseleave="fetch('/stop')"
+            ontouchstart="event.preventDefault(); fetch('/forward')"
+            ontouchend="event.preventDefault(); fetch('/stop')">
+      Вперёд
+    </button>
+
+    <button onmousedown="fetch('/backward')"
+            onmouseup="fetch('/stop')"
+            onmouseleave="fetch('/stop')"
+            ontouchstart="event.preventDefault(); fetch('/backward')"
+            ontouchend="event.preventDefault(); fetch('/stop')">
+      Назад
+    </button>
+  </p>
+</body>
+</html>
