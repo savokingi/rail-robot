@@ -5,7 +5,8 @@
   "description": "Панель мониторинга и управления железнодорожным роботом",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "demo": "node server.js --emulator"
   },
   "engines": {
     "node": ">=20.0.0"
