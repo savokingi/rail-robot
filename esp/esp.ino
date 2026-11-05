@@ -1,145 +1,186 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
+#include <WiFi.h>
+#include <WebServer.h>
 #include "helper.h"
+#include "motor.h"
+#include "regulator.h"
 
-#define PWM_POWER 140
-#define PWM_FREQ 1000
+const char *ssid = "Kvant";
+const char *password = "KvantKvant";  
 
-#define PWM_A D5
-#define PWM_B D6
+WebServer server(80);
+Adafruit_PWMServoDriver motorPwm = Adafruit_PWMServoDriver();
 
-#define OUT_A1 D1
-#define OUT_A2 D2
-
-#define OUT_B1 D7
-#define OUT_B2 D8
-
-const char* ssid = "RZD_PROJECT";
-const char* password = "123456789";
-
-ESP8266WebServer server(80);
 
 typedef enum{
-  WAIT,
-  FORWARD,
-  BACKWARD,
-  STOP
-} st_t;
+  ST_SET_ON_RAIL,
+  ST_ON_RAIL,
+  ST_SET_FOLD,
+  ST_FOLD,
+  ST_DRIVE
+}states_t;
 
-st_t st = WAIT;
+const char* stateList[] = {
+  "ST_SET_ON_RAIL",
+  "ST_ON_RAIL",
+  "ST_SET_FOLD",
+  "ST_FOLD",
+  "ST_DRIVE"
+};
 
-void handleRoot() {
+typedef struct{
+  bool auto_mode = false;
+  bool alarm = false;
+  bool obstacleDetected = false;
+  bool trainRunning = false;
+  uint8_t batteryPercent;
+  float batteryVoltage;
+  float distance;
+  int sensorValue;
+}info_t;
+
+states_t machineState;
+info_t info;
+
+void handleRoot(){
   server.sendHeader("Content-Encoding", "gzip");
   server.send_P(200, "text/html", (const char*)html_gz, html_gz_len);
 }
 
-void handleNotFound() {
-    server.send(404, "text/plain", "404: Страница не найдена");
+void sendStatus() {
+  String j = "{";
+  j += "\"batteryPercent\":"   + String(info.batteryPercent) + ",";
+  j += "\"batteryVoltage\":"   + String(info.batteryVoltage, 2) + ",";
+  j += "\"distanceMeters\":"   + String(info.distance) + ",";
+  j += "\"obstacleDetected\":" + String(info.obstacleDetected ? "true" : "false") + ",";
+  j += "\"sensorValue\":"      + String(info.sensorValue) + ",";
+  j += "\"autoMode\":"         + String(info.auto_mode ? "true" : "false") + ",";
+  j += "\"alarm\":"            + String(info.alarm ? "true" : "false") + ",";
+  j += "\"trainRunning\":"     + String(info.trainRunning ? "true" : "false") + ",";
+  j += "\"machineState\":\""   + String(stateList[machineState]) + "\"";
+  j += "}";
+  server.send(200, "application/json", j);
 }
 
-void handleF(){
-  st = FORWARD;
-  server.send(200, "text/plain", "Forward");
+void handleMode() {
+if (!server.hasArg("auto")) {
+    server.send(400, "text/plain", "no auto");
+    return;
+  }
+  bool newMode = (server.arg("auto") == "1");
+  if (newMode != info.auto_mode) {
+    info.auto_mode = newMode;
+    info.trainRunning = false;
+  }
+  Serial.printf("[deviceMode] %s\n", info.auto_mode ? "AUTO_CONTROL" : "HAND_CONTROL");
+  sendStatus();
 }
-void handleB(){
-  st = BACKWARD;
-  server.send(200, "text/plain", "Backward");
 
-}
-void handleStop(){
-  st = STOP;
-  server.send(200, "text/plain", "Stop");
+void handleCommand() {
+  if (!server.hasArg("cmd")) {
+    server.send(400, "text/plain", "no cmd");
+    return;
+  }
+  String cmd = server.arg("cmd");
+  Serial.printf("[CMD] %s\n", cmd.c_str());
 
+  // Авария работает всегда
+  if (cmd == "alarm") {
+    info.alarm = !info.alarm;
+    if (info.alarm) {
+      info.trainRunning = false;
+      // TODO: остановить моторы
+    }
+    sendStatus();
+    return;
+  }
+
+  // В аварии прочие команды игнорируем
+  if (info.alarm) {
+    sendStatus();
+    return;
+  }
+
+  // ----------------- РУЧНОЙ РЕЖИМ -----------------
+  if (!info.auto_mode) {
+    if (cmd == "transport") {
+      // ...
+    }
+    else if (cmd == "fold") {
+      // ...
+    }
+    else if (cmd == "unfold") {
+      // ...
+    }
+    else if (cmd == "forward") {
+      // TODO: Запустить моторы вперед
+    }
+    else if (cmd == "backward") {
+      // TODO: Запустить моторы назад
+    }
+    else if (cmd == "stop") {
+      // TODO: ОСТАНОВИТЬ моторы
+    }
+  }
+  // ----------------- АВТОНОМНЫЙ РЕЖИМ -----------------
+  else {
+    if (cmd == "train") {
+      info.trainRunning = !info.trainRunning;
+    }
+  }
+
+  sendStatus();
 }
+
+void handleNotFound(){
+  server.send(404, "text/plain", "404: Страница не найдена");
+}
+
+
 
 void setup() {
-  digitalWrite(OUT_A1, 0);
-  digitalWrite(OUT_A2, 0);  
-  digitalWrite(OUT_B1, 0);
-  digitalWrite(OUT_B2, 0);
-
-  pinMode(OUT_A1, OUTPUT);
-  pinMode(OUT_A2, OUTPUT);
-  pinMode(OUT_B1, OUTPUT);
-  pinMode(OUT_B2, OUTPUT);
-
-  pinMode(PWM_A, OUTPUT);
-  pinMode(PWM_B, OUTPUT);
-
-  analogWriteFreq(PWM_FREQ); 
-
-  analogWrite(PWM_A, PWM_POWER);
-  analogWrite(PWM_B, PWM_POWER);
-
   Serial.begin(115200);
-
-
   Serial.println();
-  Serial.print("Настройка точки доступа...");
 
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, password);
-  WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
+  motBegin(&motorPwm);
+  regBegin(&motorPwm);
 
-  IPAddress myIP = WiFi.softAPIP();
-  Serial.print("Имя сети (SSID): ");
+  Serial.print("Connecting to ");
   Serial.println(ssid);
-  Serial.print("IP-адрес веб-сервера: ");
-  Serial.println(myIP);
 
-    // Настраиваем сервер
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected.");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+
   server.on("/", handleRoot);
-  server.on("/forward", HTTP_GET, handleF);
-  server.on("/backward", HTTP_GET, handleB);
-  server.on("/stop", HTTP_GET, handleStop);
+  server.on("/api/status", sendStatus);
+  server.on("/api/mode", handleMode);
+  server.on("/api/command", handleCommand);
   server.onNotFound(handleNotFound);
 
+  // Запуск сервера
   server.begin();
-  Serial.println("HTTP server started");
 
 }
 
 void loop() {
   server.handleClient();
+  regTick();
 
-  switch(st){
-    case WAIT:
-      break;
-    
-    case STOP:
-      analogWrite(PWM_A, 0);
-      analogWrite(PWM_B, 0);
+  // ----------------- РУЧНОЙ РЕЖИМ -----------------
+  if(!info.auto_mode){
 
-      digitalWrite(OUT_A1, 0);
-      digitalWrite(OUT_A2, 0);
-      digitalWrite(OUT_B1, 0);
-      digitalWrite(OUT_B2, 0);
-
-      st = WAIT;
-      break;
-
-    case FORWARD:
-      analogWrite(PWM_A, PWM_POWER);
-      analogWrite(PWM_B, PWM_POWER);
-
-      digitalWrite(OUT_A1, 1);
-      digitalWrite(OUT_A2, 0);
-      digitalWrite(OUT_B1, 1);
-      digitalWrite(OUT_B2, 0);
-
-      st = WAIT;
-      break;
-
-    case BACKWARD:
-      analogWrite(PWM_A, PWM_POWER);
-      analogWrite(PWM_B, PWM_POWER);
-
-      digitalWrite(OUT_A1, 0);
-      digitalWrite(OUT_A2, 1);
-      digitalWrite(OUT_B1, 0);
-      digitalWrite(OUT_B2, 1);
-
-      st = WAIT;
-      break;  
   }
+  // ----------------- АВТОНОМНЫЙ РЕЖИМ -----------------
+  else{
+
+  }
+
 }
