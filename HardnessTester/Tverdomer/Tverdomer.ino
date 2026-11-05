@@ -10,11 +10,11 @@
 // ---------- ВЫБОР РЕЖИМА ----------
 // 1 - длинный боёк / большой шарик (перекрывает оба или только нижний)
 // 2 - маленький шарик (не закрывает нижний датчик в покое)
-#define MEASURE_MODE 1
+#define MEASURE_MODE 2
 
 // ---------- ПИНЫ ----------
-const uint8_t PIN_TOP    = 2;   // ВД  (INT0)
-const uint8_t PIN_BOTTOM = 3;   // НД  (INT1)
+const uint8_t PIN_TOP    = 3;   // ВД  (INT0)
+const uint8_t PIN_BOTTOM = 2;   // НД  (INT1)
 const uint8_t PIN_BUTTON = 10;  // кнопка, подтяжка к +
 
 // ---------- ЛОГИКА УРОВНЯ ДАТЧИКА ----------
@@ -149,7 +149,7 @@ void startMeasurement() {
   measureStartMs = millis();
   interrupts();
 
-  Serial.println(F("Measuring..."));
+  Serial.println(F("."));
 }
 
 // ------------------------------------------------------------
@@ -188,25 +188,26 @@ void processResult() {
   float BrinF =  0.00237066f  * leebF * leebF - 1.646908f  * leebF + 455.7088f;
   float VickF =  0.00264169f  * leebF * leebF - 1.900271f  * leebF + 519.8346f;
 
-  Serial.print(F("dt1(us)=")); Serial.print(dt1);
-  Serial.print(F("  dt2(us)=")); Serial.print(dt2);
-  Serial.print(F("  v1(m/s)=")); Serial.print(v1, 4);
-  Serial.print(F("  v2(m/s)=")); Serial.print(v2, 4);
+  // Serial.print(F("dt1(us)=")); Serial.print(dt1);
+  // Serial.print(F("  dt2(us)=")); Serial.print(dt2);
+  Serial.print(v1, 4);
+  Serial.print(" ");
+  Serial.print(v2, 4);
   Serial.println();
 
-  if (leebF >= 400.0f && leebF < 1000.0f) {
-    Serial.print(F("Leeb HL = ")); Serial.println((uint16_t)leebF);
-    Serial.print(F("HRC     = ")); Serial.println(RcF,   1);
-    Serial.print(F("HB      = ")); Serial.println(BrinF, 1);
-    Serial.print(F("HV      = ")); Serial.println(VickF, 1);
-  } else if (leebF >= 950.0f) {
-    Serial.print(F("Leeb HL = ")); Serial.println((uint16_t)leebF);
-    Serial.println(F("** High value **"));
-  } else {
-    Serial.print(F("Leeb HL = ")); Serial.println(leebF, 1);
-    Serial.println(F("** WARNING: out of range **"));
-  }
-  Serial.println(F("-------------------------"));
+  // if (leebF >= 400.0f && leebF < 1000.0f) {
+  //   Serial.print(F("Leeb HL = ")); Serial.println((uint16_t)leebF);
+  //   Serial.print(F("HRC     = ")); Serial.println(RcF,   1);
+  //   Serial.print(F("HB      = ")); Serial.println(BrinF, 1);
+  //   Serial.print(F("HV      = ")); Serial.println(VickF, 1);
+  // } else if (leebF >= 950.0f) {
+  //   Serial.print(F("Leeb HL = ")); Serial.println((uint16_t)leebF);
+  //   Serial.println(F("** High value **"));
+  // } else {
+  //   Serial.print(F("Leeb HL = ")); Serial.println(leebF, 1);
+  //   Serial.println(F("** WARNING: out of range **"));
+  // }
+  // Serial.println(F("-------------------------"));
 }
 
 // ------------------------------------------------------------
@@ -235,8 +236,7 @@ void loop() {
       uint8_t ec = edgeCount;
       measuring = false;
       interrupts();
-      Serial.print(F("TIMEOUT, edges caught = "));
-      Serial.println(ec);
+      Serial.println("");
     }
   }
 }
