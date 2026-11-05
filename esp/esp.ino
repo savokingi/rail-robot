@@ -7,6 +7,11 @@
 const char *ssid = "Kvant";
 const char *password = "KvantKvant";  
 
+// Настройки статического IP-адреса
+// IPAddress local_IP(10,233,133,105);  // Желаемый IP-адрес для ESP32
+// IPAddress gateway(10,233,133, 1);     // Шлюз
+// IPAddress subnet(255, 255, 255, 0);    // Мас ка подсети
+
 WebServer server(80);
 Adafruit_PWMServoDriver motorPwm = Adafruit_PWMServoDriver();
 
@@ -88,7 +93,8 @@ void handleCommand() {
     info.alarm = !info.alarm;
     if (info.alarm) {
       info.trainRunning = false;
-      // TODO: остановить моторы
+      // остановить моторы 
+      regStop();
     }
     sendStatus();
     return;
@@ -103,22 +109,25 @@ void handleCommand() {
   // ----------------- РУЧНОЙ РЕЖИМ -----------------
   if (!info.auto_mode) {
     if (cmd == "transport") {
-      // ...
+      setTransport();
     }
     else if (cmd == "fold") {
-      // ...
+      setFold();
     }
     else if (cmd == "unfold") {
-      // ...
+      setOnRail();
     }
     else if (cmd == "forward") {
-      // TODO: Запустить моторы вперед
+      motForward(&motorPwm, LEFT_WEEL, WEEL_SPEED);
+      motForward(&motorPwm, RIGHT_WEEL, WEEL_SPEED);
     }
     else if (cmd == "backward") {
-      // TODO: Запустить моторы назад
+      motBackward(&motorPwm, LEFT_WEEL, WEEL_SPEED);
+      motBackward(&motorPwm, RIGHT_WEEL, WEEL_SPEED);
     }
     else if (cmd == "stop") {
-      // TODO: ОСТАНОВИТЬ моторы
+      motStop(&motorPwm, LEFT_WEEL);
+      motStop(&motorPwm, RIGHT_WEEL);
     }
   }
   // ----------------- АВТОНОМНЫЙ РЕЖИМ -----------------
@@ -144,7 +153,11 @@ void setup() {
   motBegin(&motorPwm);
   regBegin(&motorPwm);
 
-  Serial.print("Connecting to ");
+  // if (!WiFi.config(local_IP, gateway, subnet)) {
+  //   Serial.println("Ошибка: Не удалось настроить статический IP");
+  // }
+
+  Serial.print("Подключение к ");
   Serial.println(ssid);
 
   WiFi.begin(ssid, password);

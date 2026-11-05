@@ -6,12 +6,16 @@
 #include <Wire.h>
 
 // Каналы моторов
-#define LEFT_LEG    4,5
-#define RIGHT_LEG   6,7
-#define LEFT_HAND   8,9
-#define RIGHT_HAND  10,11
-#define LEFT_WEEL   12,13
-#define RIGHT_WEEL  14,15
+#define LEFT_LEG 6,7
+#define RIGHT_LEG 4,5
+
+#define LEFT_HAND 11,10
+#define RIGHT_HAND 8,9
+
+#define LEFT_WEEL 13,12
+#define RIGHT_WEEL 14,15
+
+#define WHEEL_SPEED 4090
 
 #define PWM_FREQ         1000
 #define MOTOR_MAX_SPEED  4095

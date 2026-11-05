@@ -35,12 +35,12 @@ struct Motor {
 };
 
 Motor motors[] = {
-  {"left_leg",   4,  5,  LEFT_LEG_POT,   0, 4095, MOTOR_LEG},
-  {"right_leg",  6,  7,  RIGHT_LEG_POT,  0, 4095, MOTOR_LEG},
-  {"left_hand",  8,  9,  LEFT_HAND_POT,  0, 4095, MOTOR_HAND},
-  {"right_hand", 10, 11, RIGHT_HAND_POT, 0, 4095, MOTOR_HAND},
-  {"left_weel",  12, 14, 0xFF, 0, 0, MOTOR_WHEEL},
-  {"right_weel", 13, 15, 0xFF, 0, 0, MOTOR_WHEEL},
+  {"left_leg", 6,  7, LEFT_LEG_POT,   0, 4095, MOTOR_LEG},
+  {"right_leg", 4,  5,  RIGHT_LEG_POT,  0, 4095, MOTOR_LEG},
+  {"left_hand",  11, 10,  LEFT_HAND_POT,  0, 4095, MOTOR_HAND},
+  {"right_hand", 8,  9, RIGHT_HAND_POT, 0, 4095, MOTOR_HAND},
+  {"left_weel",  13, 12, 0xFF, 0, 0, MOTOR_WHEEL},
+  {"right_weel", 14, 15, 0xFF, 0, 0, MOTOR_WHEEL},
 };
 const int MOTOR_COUNT = sizeof(motors) / sizeof(motors[0]);
 

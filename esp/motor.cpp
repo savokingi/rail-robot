@@ -6,12 +6,12 @@ void motStop(Adafruit_PWMServoDriver* pwm, uint8_t pin_a, uint8_t pin_b){
 }
 
 void motStopAll(Adafruit_PWMServoDriver* pwm){
-  motStop(pwm, LEFT_LEG);
-  motStop(pwm, RIGHT_LEG);
-  motStop(pwm, LEFT_HAND);
-  motStop(pwm, RIGHT_HAND);
-  motStop(pwm, LEFT_WEEL);
-  motStop(pwm, RIGHT_WEEL);
+  motBrake(pwm, LEFT_LEG);
+  motBrake(pwm, RIGHT_LEG);
+  motBrake(pwm, LEFT_HAND);
+  motBrake(pwm, RIGHT_HAND);
+  motBrake(pwm, LEFT_WEEL);
+  motBrake(pwm, RIGHT_WEEL);
 }
 
 void motForward(Adafruit_PWMServoDriver* pwm, uint8_t pin_a, uint8_t pin_b, uint16_t speed){

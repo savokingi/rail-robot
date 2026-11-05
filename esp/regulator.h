@@ -9,20 +9,21 @@
 #define POS_SLOW_SPEED       100
 #define POS_ERROR_MARGIN_PCT 2
 
-#define LEFT_HAND_OUT   4000
-#define RIGHT_HAND_OUT  4000
-#define LEFT_LEG_OUT    4000
-#define RIGHT_LEG_OUT   4000
+// Крайние положения (сырые значения АЦП 0-4095)
+#define LEFT_HAND_OUT 260
+#define RIGHT_HAND_OUT 467
+#define LEFT_LEG_OUT 904
+#define RIGHT_LEG_OUT 1692
 
-#define LEFT_HAND_IN    0
-#define RIGHT_HAND_IN   0
-#define LEFT_LEG_IN     0
-#define RIGHT_LEG_IN    0
+#define LEFT_HAND_IN 2586
+#define RIGHT_HAND_IN 105
+#define LEFT_LEG_IN 908
+#define RIGHT_LEG_IN 1692
 
-#define HAND_SPEED        4000
-#define HAND_SLOW_SPEED   1500
-#define LEG_SPEED         4000
-#define LEG_SLOW_SPEED    1500
+#define LEG_SPEED   4090
+#define HAND_SPEED  4090
+#define HAND_SLOW_SPEED   3500
+#define LEG_SLOW_SPEED    4090
 
 #define LEFT_HAND_POT   4
 #define RIGHT_HAND_POT  5
