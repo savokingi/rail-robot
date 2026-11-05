@@ -1,762 +1,425 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Rail Robot</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: monospace;
-            background: #0a0a0a;
-            color: #0f0;
-            padding: 20px;
-        }
-        
-        h2 {
-            margin-bottom: 20px;
-            border-bottom: 1px solid #0f0;
-            padding-bottom: 10px;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .sensor-card {
-            border: 1px solid #0f0;
-            padding: 15px;
-            background: #111;
-        }
-        
-        .sensor-card h3 {
-            font-size: 14px;
-            margin-bottom: 10px;
-            color: #0f0;
-        }
-        
-        .sensor-value {
-            font-size: 32px;
-            font-weight: bold;
-            min-height: 40px;
-        }
-        
-        .sensor-status {
-            font-size: 12px;
-            color: #555;
-            margin-top: 5px;
-        }
-        
-        .waiting {
-            color: #aa0;
-        }
-        
-        .ready {
-            color: #0f0;
-        }
-        
-        .error {
-            color: #f00;
-        }
-        
-        .manual {
-            border-top: 1px solid #0f0;
-            padding-top: 20px;
-            margin-top: 20px;
-        }
-        
-        .manual summary {
-            display: inline-block;
-            background: #0f0;
-            color: #000;
-            padding: 8px 16px;
-            cursor: pointer;
-            font-weight: bold;
-            list-style: none;
-            user-select: none;
-        }
-
-        .manual summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .manual summary:hover {
-            background: #0c0;
-        }
-
-        .manual summary:focus-visible {
-            outline: 2px solid #fff;
-            outline-offset: 2px;
-        }
-
-        .manual summary::before {
-            content: '+ ';
-        }
-
-        .manual[open] summary::before {
-            content: '− ';
-        }
-
-        .manual-content {
-            margin-top: 15px;
-        }
-
-        .movement {
-            border: 1px solid #0f0;
-            padding: 15px;
-            margin: 20px 0;
-            background: #111;
-        }
-
-        .movement h3 {
-            margin-bottom: 15px;
-        }
-
-        .movement-controls {
-            display: flex;
-            gap: 15px;
-        }
-
-        .movement-button {
-            flex: 1;
-            min-height: 64px;
-            font-size: 18px;
-            border: 1px solid #0f0;
-            touch-action: none;
-            user-select: none;
-        }
-
-        .movement-button:active,
-        .movement-button.active {
-            background: #080;
-            color: #fff;
-        }
-
-        .movement-status {
-            margin-top: 12px;
-            color: #555;
-            font-size: 12px;
-        }
-
-        .movement-status.moving {
-            color: #0f0;
-        }
-
-        .movement-status.failed {
-            color: #f00;
-        }
-
-        .map-panel {
-            border: 1px solid #0f0;
-            padding: 15px;
-            margin: 20px 0;
-            background: #111;
-        }
-
-        .map-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-            margin-bottom: 12px;
-        }
-
-        .map-legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            color: #999;
-            font-size: 12px;
-        }
-
-        .legend-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border: 1px solid currentColor;
-            border-radius: 50%;
-            background: currentColor;
-        }
-
-        .legend-ok {
-            color: #0f0;
-        }
-
-        .legend-fail {
-            color: #f33;
-        }
-
-        .legend-robot {
-            color: #0ff;
-        }
-
-        #map {
-            width: 100%;
-            height: 420px;
-            border: 1px solid #0f0;
-            background-color: #0a0a0a;
-            background-image:
-                linear-gradient(#153015 1px, transparent 1px),
-                linear-gradient(90deg, #153015 1px, transparent 1px);
-            background-size: 32px 32px;
-        }
-
-        .map-note {
-            margin-top: 10px;
-            color: #777;
-            font-size: 12px;
-        }
-
-        .leaflet-bar a,
-        .leaflet-bar a:hover {
-            background: #111;
-            color: #0f0;
-            border-color: #0f0;
-        }
-
-        .leaflet-control-zoom {
-            border: 1px solid #0f0 !important;
-        }
-
-        .leaflet-popup-content-wrapper,
-        .leaflet-popup-tip {
-            background: #111;
-            color: #0f0;
-        }
-
-        .leaflet-popup-content-wrapper {
-            border: 1px solid #0f0;
-            border-radius: 0;
-        }
-
-        .leaflet-popup-content {
-            margin: 12px;
-            font-family: monospace;
-            line-height: 1.5;
-        }
-
-        .leaflet-popup-content h4 {
-            margin-bottom: 6px;
-        }
-
-        .leaflet-container a.leaflet-popup-close-button {
-            color: #0f0;
-        }
-
-        @media (max-width: 700px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-
-            .map-header {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            #map {
-                height: 340px;
-            }
-        }
-        
-        .row {
-            margin: 10px 0;
-        }
-        
-        input {
-            background: #222;
-            color: #0f0;
-            border: 1px solid #0f0;
-            padding: 5px;
-            width: 60px;
-            font-family: monospace;
-            text-align: center;
-        }
-        
-        button {
-            background: #0f0;
-            color: #000;
-            border: none;
-            padding: 8px 16px;
-            cursor: pointer;
-            font-family: monospace;
-            font-weight: bold;
-        }
-        
-        button:hover {
-            background: #0c0;
-        }
-
-        button:focus-visible {
-            outline: 2px solid #fff;
-            outline-offset: 2px;
-        }
-        
-        #log {
-            margin-top: 20px;
-            border: 1px solid #0f0;
-            padding: 10px;
-            height: 200px;
-            overflow-y: auto;
-            background: #0a0a0a;
-            font-size: 12px;
-            white-space: pre-wrap;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root { --green: #0f0; --dark: #0a0a0a; --panel: #111; --muted: #777; --red: #f33; --cyan: #0ff; --yellow: #dd0; }
+        body { background: var(--dark); color: var(--green); font-family: monospace; min-height: 100vh; }
+        button { background: var(--green); color: #000; border: 0; padding: 10px 18px; font: 700 14px monospace; cursor: pointer; }
+        button:hover { background: #0c0; }
+        button:disabled { background: #253525; color: #687568; cursor: not-allowed; }
+        button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        .danger { background: var(--red); color: #fff; }
+        .danger:hover { background: #c22; }
+        .secondary { background: #222; color: var(--green); border: 1px solid var(--green); }
+        .topbar { position: sticky; top: 0; z-index: 900; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 20px; padding: 14px 20px; border-bottom: 1px solid var(--green); background: rgba(10,10,10,.96); }
+        .brand { font-size: 18px; }
+        .km-box { text-align: right; }
+        .km-label { color: var(--muted); font-size: 11px; }
+        .km-value { color: var(--green); font-size: 22px; font-weight: 700; }
+        .menu-button { width: 44px; height: 40px; padding: 0; font-size: 22px; }
+        main { max-width: 1400px; margin: auto; padding: 20px; }
+        .status-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; padding: 12px 15px; border: 1px solid #274727; background: var(--panel); }
+        .status-group { display: flex; flex-wrap: wrap; gap: 16px; color: #aaa; }
+        .status-value { color: var(--green); }
+        .status-value.bad { color: var(--red); }
+        .layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 15px; }
+        .panel { border: 1px solid var(--green); background: var(--panel); padding: 15px; }
+        .panel h2, .panel h3 { margin-bottom: 12px; }
+        #map { width: 100%; height: 520px; border: 1px solid var(--green); background-color: var(--dark); background-image: linear-gradient(#153015 1px,transparent 1px),linear-gradient(90deg,#153015 1px,transparent 1px); background-size: 32px 32px; }
+        .map-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 9px; color: var(--muted); font-size: 11px; }
+        .run-card { display: flex; flex-direction: column; min-height: 100%; }
+        .phase { margin-bottom: 14px; font-size: 24px; font-weight: 700; }
+        .run-description { color: #999; line-height: 1.5; margin-bottom: 18px; }
+        .run-actions { display: grid; gap: 10px; margin-top: auto; }
+        .start-button { min-height: 72px; font-size: 20px; }
+        .active-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 15px; }
+        .metric { border: 1px solid #285528; background: var(--panel); padding: 13px; min-width: 0; }
+        .metric-label { color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+        .metric-value { font-size: 23px; font-weight: 700; overflow-wrap: anywhere; }
+        .analytics { display: grid; grid-template-columns: 1fr 1.5fr; gap: 15px; margin-top: 15px; }
+        #hardness-chart { width: 100%; height: 260px; border: 1px solid #285528; background: #0a0a0a; }
+        .chart-empty { fill: #666; font: 13px monospace; }
+        .table-wrap { overflow: auto; max-height: 320px; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border-bottom: 1px solid #263826; padding: 9px 7px; text-align: left; white-space: nowrap; }
+        th { position: sticky; top: 0; background: var(--panel); color: #888; }
+        .ok { color: var(--green); }
+        .defect { color: var(--red); }
+        .events { margin-top: 15px; max-height: 220px; overflow: auto; color: #aaa; font-size: 12px; }
+        .event { padding: 6px 0; border-bottom: 1px solid #1e2a1e; }
+        .event-time { color: #555; margin-right: 8px; }
+        .overlay { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,.65); display: none; }
+        .overlay.open { display: block; }
+        .drawer { position: fixed; z-index: 1000; top: 0; right: 0; width: min(420px, 92vw); height: 100vh; padding: 20px; overflow-y: auto; background: #0d0d0d; border-left: 1px solid var(--green); transform: translateX(100%); transition: transform .2s ease; }
+        .drawer.open { transform: translateX(0); }
+        .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-button { background: transparent; color: var(--green); border: 1px solid var(--green); padding: 6px 11px; }
+        .drawer-section { padding: 16px 0; border-top: 1px solid #274727; }
+        .drawer-section h3 { margin-bottom: 12px; }
+        .live-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; color: #888; font-size: 12px; }
+        .live-grid strong { color: var(--green); text-align: right; }
+        .manual-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .manual-button { min-height: 70px; font-size: 17px; touch-action: none; user-select: none; }
+        .manual-button.active { background: #080; color: #fff; }
+        .manual-stop { grid-column: 1 / -1; min-height: 48px; }
+        .error-toast { position: fixed; left: 50%; bottom: 20px; z-index: 1200; transform: translateX(-50%); display: none; max-width: 90vw; padding: 12px 18px; color: #fff; background: #a00; border: 1px solid var(--red); }
+        .error-toast.show { display: block; }
+        .leaflet-bar a,.leaflet-bar a:hover { background: #111; color: var(--green); border-color: var(--green); }
+        .leaflet-control-zoom { border: 1px solid var(--green) !important; }
+        .leaflet-popup-content-wrapper,.leaflet-popup-tip { background: #111; color: var(--green); }
+        .leaflet-popup-content-wrapper { border: 1px solid var(--green); border-radius: 0; }
+        .leaflet-popup-content { font-family: monospace; line-height: 1.5; }
+        .leaflet-container a.leaflet-popup-close-button { color: var(--green); }
+        @media (max-width: 1000px) { .layout,.analytics { grid-template-columns: 1fr; } .metrics { grid-template-columns: repeat(3,1fr); } #map { height: 440px; } }
+        @media (max-width: 600px) { .topbar { grid-template-columns: 1fr auto; } .km-box { grid-row: 2; grid-column: 1 / -1; text-align: left; } main { padding: 10px; } .metrics { grid-template-columns: repeat(2,1fr); } #map { height: 390px; } }
     </style>
 </head>
 <body>
-    <h2>Мониторинг датчиков рельсов</h2>
+    <header class="topbar">
+        <div class="brand">RAIL ROBOT</div>
+        <div class="km-box">
+            <div class="km-label">КИЛОМЕТР УЧАСТКА</div>
+            <div class="km-value" id="rail-km">—</div>
+        </div>
+        <button class="menu-button" id="menu-open" aria-label="Открыть меню">☰</button>
+    </header>
 
-    <div class="movement">
-        <h3>Управление движением</h3>
-        <div class="movement-controls">
-            <button class="movement-button" type="button" data-direction="forward">
-                Вперёд
-            </button>
-            <button class="movement-button" type="button" data-direction="backward">
-                Назад
-            </button>
-        </div>
-        <div class="movement-status" id="movement-status" role="status" aria-live="polite">
-            остановлен
-        </div>
-    </div>
-    
-    <div class="grid">
-        <div class="sensor-card" id="card-T0">
-            <h3>Твердость — Левый (T0)</h3>
-            <div class="sensor-value" id="val-T0">—</div>
-            <div class="sensor-status" id="stat-T0">ожидание</div>
-        </div>
-        
-        <div class="sensor-card" id="card-T1">
-            <h3>Твердость — Правый (T1)</h3>
-            <div class="sensor-value" id="val-T1">—</div>
-            <div class="sensor-status" id="stat-T1">ожидание</div>
-        </div>
-        
-        <div class="sensor-card" id="card-P0">
-            <h3>Подуклон — Левый (P0)</h3>
-            <div class="sensor-value" id="val-P0">—</div>
-            <div class="sensor-status" id="stat-P0">ожидание</div>
-        </div>
-        
-        <div class="sensor-card" id="card-P1">
-            <h3>Подуклон — Правый (P1)</h3>
-            <div class="sensor-value" id="val-P1">—</div>
-            <div class="sensor-status" id="stat-P1">ожидание</div>
-        </div>
-        
-        <div class="sensor-card" id="card-G0">
-            <h3>Газ (G0)</h3>
-            <div class="sensor-value" id="val-G0">—</div>
-            <div class="sensor-status" id="stat-G0">ожидание</div>
-        </div>
-        
-        <div class="sensor-card" id="card-D0">
-            <h3>Звук — Левый (D0)</h3>
-            <div class="sensor-value" id="val-D0">—</div>
-            <div class="sensor-status" id="stat-D0">ожидание</div>
-        </div>
-        
-        <div class="sensor-card" id="card-D1">
-            <h3>Звук — Правый (D1)</h3>
-            <div class="sensor-value" id="val-D1">—</div>
-            <div class="sensor-status" id="stat-D1">ожидание</div>
-        </div>
-    </div>
-
-    <section class="map-panel">
-        <div class="map-header">
-            <h3>Карта маршрута</h3>
-            <div class="map-legend" aria-label="Обозначения карты">
-                <span class="legend-item legend-ok"><span class="legend-dot"></span>норма</span>
-                <span class="legend-item legend-fail"><span class="legend-dot"></span>не норма</span>
-                <span class="legend-item legend-robot"><span class="legend-dot"></span>робот</span>
+    <main>
+        <section class="status-line">
+            <div class="status-group">
+                <span>ESP: <strong class="status-value" id="connection-status">подключение...</strong></span>
+                <span>GPS → путь: <strong class="status-value" id="rail-offset">—</strong></span>
+                <span>Режим: <strong class="status-value" id="phase-inline">—</strong></span>
             </div>
-        </div>
-        <div id="map" aria-label="Пройденный маршрут и точки замеров"></div>
-        <div class="map-note" id="map-note">Демонстрационный маршрут — ожидаются данные GPS</div>
-    </section>
+            <span id="session-id">Рейс не запущен</span>
+        </section>
 
-    <details class="manual">
-        <summary>Ручное управление</summary>
-        <div class="manual-content">
-        <div class="row">
-            <label>Датчик:</label>
-            <input type="text" id="name" value="T" maxlength="1">
-            <span style="color: #555; font-size: 12px;">T, P, G, D</span>
+        <div class="layout">
+            <section class="panel">
+                <h2>Карта пути</h2>
+                <div id="map" aria-label="Железнодорожный путь, маршрут и замеры"></div>
+                <div class="map-footer">
+                    <span id="map-info">Загрузка локальной линии...</span>
+                    <span>© OpenStreetMap contributors, ODbL</span>
+                </div>
+            </section>
+
+            <section class="panel run-card">
+                <h2>Управление рейсом</h2>
+                <div class="phase" id="phase">ОЖИДАНИЕ</div>
+                <p class="run-description" id="run-description">
+                    Проверьте подключение ESP и положение GPS на выбранном железнодорожном участке.
+                    После запуска робот будет останавливаться для замера каждые 5 метров.
+                </p>
+                <div class="run-actions">
+                    <button class="start-button" id="start-button">ЗАПУСК</button>
+                    <div class="active-actions" id="active-actions" hidden>
+                        <button id="pause-button">ПАУЗА</button>
+                        <button class="danger" id="stop-button">СТОП</button>
+                    </div>
+                </div>
+            </section>
         </div>
-        <div class="row">
-            <label>Номер:</label>
-            <input type="text" id="num" value="0" maxlength="1">
-            <span style="color: #555; font-size: 12px;">0, 1</span>
-        </div>
-        <div class="row">
-            <label>Команда:</label>
-            <input type="text" id="cmd" value="M" maxlength="1">
-            <span style="color: #555; font-size: 12px;">M — измерить, R — готовность</span>
-        </div>
-        <button onclick="send()">Отправить</button>
-        </div>
-    </details>
-    
-    <div id="log"></div>
+
+        <section class="metrics" aria-label="Сводная аналитика">
+            <div class="metric"><div class="metric-label">ПРОЙДЕНО</div><div class="metric-value" id="metric-distance">0 м</div></div>
+            <div class="metric"><div class="metric-label">ЗАМЕРОВ</div><div class="metric-value" id="metric-measurements">0</div></div>
+            <div class="metric"><div class="metric-label">ДЕФЕКТОВ</div><div class="metric-value defect" id="metric-defects">0</div></div>
+            <div class="metric"><div class="metric-label">ОТМЕЧЕНО</div><div class="metric-value" id="metric-marked">0</div></div>
+            <div class="metric"><div class="metric-label">СР. ТВЁРДОСТЬ</div><div class="metric-value" id="metric-average">—</div></div>
+            <div class="metric"><div class="metric-label">ВРЕМЯ</div><div class="metric-value" id="metric-duration">00:00</div></div>
+        </section>
+
+        <section class="analytics">
+            <div class="panel">
+                <h3>Твёрдость по пройденному пути</h3>
+                <svg id="hardness-chart" viewBox="0 0 600 260" preserveAspectRatio="none"></svg>
+            </div>
+            <div class="panel">
+                <h3>Все замеры</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>№</th><th>Время</th><th>Км</th><th>Путь</th><th>Твёрдость</th><th>Результат</th><th>Краска</th></tr></thead>
+                        <tbody id="measurements-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel events">
+            <h3>Журнал рейса</h3>
+            <div id="events-list">Событий пока нет</div>
+        </section>
+    </main>
+
+    <div class="overlay" id="overlay"></div>
+    <aside class="drawer" id="drawer" aria-hidden="true">
+        <div class="drawer-header"><h2>Управление и телеметрия</h2><button class="close-button" id="menu-close">×</button></div>
+        <section class="drawer-section">
+            <h3>Текущее состояние</h3>
+            <div class="live-grid">
+                <span>ESP</span><strong id="live-esp">—</strong>
+                <span>COM-порт</span><strong id="live-port">—</strong>
+                <span>GPS</span><strong id="live-gps">—</strong>
+                <span>Км участка</span><strong id="live-km">—</strong>
+                <span>Отклонение от пути</span><strong id="live-offset">—</strong>
+                <span>Скорость</span><strong id="live-speed">—</strong>
+                <span>Обороты/импульсы</span><strong id="live-ticks">—</strong>
+                <span>Мотор</span><strong id="live-motor">—</strong>
+            </div>
+        </section>
+        <section class="drawer-section">
+            <h3>Последний замер</h3>
+            <div class="live-grid">
+                <span>Твёрдость</span><strong id="live-hardness">—</strong>
+                <span>Результат</span><strong id="live-result">—</strong>
+            </div>
+        </section>
+        <section class="drawer-section">
+            <h3>Ручное движение</h3>
+            <div class="manual-controls">
+                <button class="manual-button" data-manual="forward">ВПЕРЁД</button>
+                <button class="manual-button" data-manual="back">НАЗАД</button>
+                <button class="manual-stop danger" id="manual-stop">СТОП</button>
+            </div>
+        </section>
+    </aside>
+    <div class="error-toast" id="error-toast"></div>
 
     <script src="vendor/leaflet/leaflet.js"></script>
     <script>
-        const logEl = document.getElementById('log');
-        
-        function log(msg) {
-            const time = new Date().toLocaleTimeString();
-            logEl.textContent += `[${time}] ${msg}\n`;
-            logEl.scrollTop = logEl.scrollHeight;
-        }
-
-        const mapNote = document.getElementById('map-note');
-        const map = L.map('map', {
-            attributionControl: false,
-            zoomAnimation: false
-        });
-        const trackLayer = L.layerGroup().addTo(map);
-        const transparentTile =
-            'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-        let localTileLoaded = false;
-
-        L.tileLayer('tiles/{z}/{x}/{y}.png', {
-            minZoom: 1,
-            maxZoom: 19,
-            errorTileUrl: transparentTile
-        }).on('tileload', () => {
-            if (localTileLoaded) return;
-            localTileLoaded = true;
-            mapNote.textContent = 'Локальная офлайн-карта загружена';
-        }).addTo(map);
-
-        const demoTrack = {
-            path: [
-                { lat: 55.75110, lon: 37.61220 },
-                { lat: 55.75220, lon: 37.61800 },
-                { lat: 55.75400, lon: 37.62400 },
-                { lat: 55.75700, lon: 37.63000 },
-                { lat: 55.76000, lon: 37.63800 }
-            ],
-            currentPosition: { lat: 55.76000, lon: 37.63800 },
-            measurements: [
-                {
-                    id: 'M-001', lat: 55.75220, lon: 37.61800,
-                    status: 'ok', measuredAt: '10:12:04',
-                    values: { T0: 640, P0: 12, G0: 95 }
-                },
-                {
-                    id: 'M-002', lat: 55.75400, lon: 37.62400,
-                    status: 'fail', measuredAt: '10:14:18',
-                    values: { T0: 812, P0: 46, G0: 108 }
-                },
-                {
-                    id: 'M-003', lat: 55.75700, lon: 37.63000,
-                    status: 'ok', measuredAt: '10:17:31',
-                    values: { T0: 625, P0: 15, G0: 91 }
-                }
-            ]
+        const phaseLabels = {
+            disconnected: 'НЕТ СВЯЗИ', idle: 'ОЖИДАНИЕ', running: 'ДВИЖЕНИЕ',
+            measuring: 'ИЗМЕРЕНИЕ', marking: 'МАРКИРОВКА', paused: 'ПАУЗА',
+            manual: 'РУЧНОЙ РЕЖИМ', error: 'ОШИБКА'
         };
+        const map = L.map('map', { attributionControl: false, zoomAnimation: false })
+            .setView([56.3276, 43.9470], 16);
+        const railwayLayer = L.geoJSON(null, {
+            style: { color: '#aaa', weight: 8, opacity: .75, dashArray: '11 7' },
+            onEachFeature(feature, layer) {
+                const box = document.createElement('div');
+                const title = document.createElement('strong');
+                const source = document.createElement('div');
+                title.textContent = feature.properties?.name || 'Железнодорожный путь';
+                source.textContent = '© OpenStreetMap contributors, ODbL';
+                source.style.color = '#888';
+                box.append(title, source);
+                layer.bindPopup(box);
+            }
+        }).addTo(map);
+        const trackLayer = L.layerGroup().addTo(map);
+        const measurementLayer = L.layerGroup().addTo(map);
+        let robotMarker = null;
+        let currentState = null;
+        let lastPathCount = -1;
+        let lastMeasurementCount = -1;
+        let errorTimer = null;
 
-        function isValidCoordinate(point) {
-            return point && Number.isFinite(Number(point.lat)) &&
-                Number.isFinite(Number(point.lon));
+        const byId = id => document.getElementById(id);
+        const formatNumber = (value, suffix = '') => value === null || value === undefined ? '—' : `${value}${suffix}`;
+        const formatTime = iso => iso ? new Date(iso).toLocaleTimeString() : '—';
+        const formatDuration = seconds => `${String(Math.floor((seconds || 0) / 60)).padStart(2,'0')}:${String((seconds || 0) % 60).padStart(2,'0')}`;
+
+        function showError(message) {
+            const toast = byId('error-toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(errorTimer);
+            errorTimer = setTimeout(() => toast.classList.remove('show'), 4000);
         }
 
-        function createMeasurementPopup(measurement) {
-            const container = document.createElement('div');
-            const title = document.createElement('h4');
-            const status = document.createElement('div');
-            const time = document.createElement('div');
-            const coordinates = document.createElement('div');
-
-            title.textContent = 'Замер ' + (measurement.id || '');
-            status.textContent = measurement.status === 'ok' ? 'Статус: норма' : 'Статус: не норма';
-            status.style.color = measurement.status === 'ok' ? '#0f0' : '#f33';
-            time.textContent = 'Время: ' + (measurement.measuredAt || '—');
-            coordinates.textContent =
-                'GPS: ' + Number(measurement.lat).toFixed(6) + ', ' +
-                Number(measurement.lon).toFixed(6);
-
-            container.append(title, status, time, coordinates);
-
-            if (measurement.values && typeof measurement.values === 'object') {
-                Object.entries(measurement.values).forEach(([name, value]) => {
-                    const row = document.createElement('div');
-                    row.textContent = name + ': ' + value;
-                    container.append(row);
-                });
-            }
-
-            return container;
-        }
-
-        function renderTrack(track, demo = false) {
-            trackLayer.clearLayers();
-
-            const pathPoints = (track.path || [])
-                .filter(isValidCoordinate)
-                .map(point => [Number(point.lat), Number(point.lon)]);
-            const boundsPoints = [...pathPoints];
-
-            if (pathPoints.length > 1) {
-                L.polyline(pathPoints, {
-                    color: '#0f0',
-                    weight: 5,
-                    opacity: 0.9
-                }).addTo(trackLayer);
-            }
-
-            (track.measurements || []).filter(isValidCoordinate).forEach(measurement => {
-                const isOk = measurement.status === 'ok';
-                const point = [Number(measurement.lat), Number(measurement.lon)];
-
-                const marker = L.circleMarker(point, {
-                    radius: 8,
-                    color: isOk ? '#0f0' : '#f33',
-                    fillColor: isOk ? '#0f0' : '#f33',
-                    fillOpacity: 0.85,
-                    weight: 2
-                })
-                    .bindPopup(createMeasurementPopup(measurement))
-                    .addTo(trackLayer);
-                const markerElement = marker.getElement();
-                if (markerElement) {
-                    markerElement.setAttribute(
-                        'aria-label',
-                        'Замер ' + (measurement.id || '') + ': ' +
-                            (isOk ? 'норма' : 'не норма')
-                    );
-                    markerElement.setAttribute('tabindex', '0');
-                }
-                boundsPoints.push(point);
+        async function api(path, body) {
+            const response = await fetch(path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: body === undefined ? undefined : JSON.stringify(body)
             });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            return data;
+        }
 
-            if (isValidCoordinate(track.currentPosition)) {
-                const robotPoint = [
-                    Number(track.currentPosition.lat),
-                    Number(track.currentPosition.lon)
-                ];
+        async function loadRailway() {
+            const response = await fetch('/data/railway-line.geojson');
+            const data = await response.json();
+            railwayLayer.addData(data);
+            const bounds = railwayLayer.getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [45,45], maxZoom: 18 });
+            byId('map-info').textContent = data.features[0].properties.name;
+        }
 
-                const robotMarker = L.circleMarker(robotPoint, {
-                    radius: 10,
-                    color: '#fff',
-                    fillColor: '#0ff',
-                    fillOpacity: 1,
-                    weight: 3
-                }).bindTooltip('Робот').addTo(trackLayer);
-                const robotElement = robotMarker.getElement();
-                if (robotElement) robotElement.setAttribute('aria-label', 'Текущее положение робота');
-                boundsPoints.push(robotPoint);
+        function createMeasurementPopup(item) {
+            const box = document.createElement('div');
+            const title = document.createElement('strong');
+            const details = [
+                `Время: ${formatTime(item.measuredAt)}`,
+                `Км участка: ${item.railKm}`,
+                `Пройдено: ${item.distanceMeters.toFixed(1)} м`,
+                `Твёрдость: ${item.hardness}`,
+                `Результат: ${item.status === 'defect' ? 'дефект' : 'норма'}`,
+                `Маркировка: ${item.marked ? 'выполнена' : 'нет'}`
+            ];
+            title.textContent = item.id;
+            box.append(title);
+            details.forEach(text => { const row = document.createElement('div'); row.textContent = text; box.append(row); });
+            return box;
+        }
+
+        function renderMap(state) {
+            const session = state.session;
+            const path = session?.path || [];
+            const measurements = session?.measurements || [];
+            if (path.length !== lastPathCount) {
+                lastPathCount = path.length;
+                trackLayer.clearLayers();
+                if (path.length > 1) L.polyline(path.map(p => [p.lat,p.lon]), { color:'#0f0', weight:5 }).addTo(trackLayer);
             }
-
-            if (boundsPoints.length) {
-                map.fitBounds(L.latLngBounds(boundsPoints), {
-                    padding: [40, 40],
-                    maxZoom: 17
+            if (measurements.length !== lastMeasurementCount) {
+                lastMeasurementCount = measurements.length;
+                measurementLayer.clearLayers();
+                measurements.forEach(item => {
+                    const color = item.status === 'defect' ? '#f33' : '#0f0';
+                    L.circleMarker([item.lat,item.lon], { radius:8, color, fillColor:color, fillOpacity:.9, weight:2 })
+                        .bindPopup(createMeasurementPopup(item)).addTo(measurementLayer);
                 });
             }
-
-            if (demo) {
-                mapNote.textContent = 'Демонстрационный маршрут — ожидаются данные GPS';
-            } else if (!localTileLoaded) {
-                mapNote.textContent = 'GPS подключён · локальные тайлы пока не загружены';
+            const telemetry = state.telemetry;
+            if (telemetry) {
+                const point = [telemetry.lat, telemetry.lon];
+                if (!robotMarker) robotMarker = L.circleMarker(point, { radius:10, color:'#fff', fillColor:'#0ff', fillOpacity:1, weight:3 }).bindTooltip('Робот').addTo(map);
+                else robotMarker.setLatLng(point);
             }
         }
 
-        async function loadTrack() {
-            try {
-                const response = await fetch('/track', { cache: 'no-store' });
-                if (!response.ok) return false;
-
-                const track = await response.json();
-                if (!Array.isArray(track.path) || track.path.length === 0) return false;
-
-                renderTrack(track);
-                return true;
-            } catch (e) {
-                return false;
+        function renderChart(measurements) {
+            const svg = byId('hardness-chart');
+            svg.replaceChildren();
+            if (!measurements.length) {
+                const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+                text.setAttribute('x','300'); text.setAttribute('y','135'); text.setAttribute('text-anchor','middle'); text.setAttribute('class','chart-empty');
+                text.textContent = 'Замеры появятся после запуска'; svg.append(text); return;
             }
+            const values = measurements.map(m => m.hardness);
+            const min = Math.min(...values) - 20;
+            const max = Math.max(...values) + 20;
+            const width = 560, height = 210, left = 25, top = 20;
+            const points = measurements.map((m,index) => {
+                const x = left + (measurements.length === 1 ? width / 2 : index / (measurements.length - 1) * width);
+                const y = top + height - (m.hardness - min) / Math.max(1,max-min) * height;
+                return { x,y,m };
+            });
+            const polyline = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+            polyline.setAttribute('points',points.map(p=>`${p.x},${p.y}`).join(' '));
+            polyline.setAttribute('fill','none'); polyline.setAttribute('stroke','#0f0'); polyline.setAttribute('stroke-width','3'); svg.append(polyline);
+            points.forEach(point => {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+                circle.setAttribute('cx',point.x); circle.setAttribute('cy',point.y); circle.setAttribute('r','6');
+                circle.setAttribute('fill',point.m.status === 'defect' ? '#f33' : '#0f0'); svg.append(circle);
+            });
         }
 
-        renderTrack(demoTrack, true);
-        loadTrack().then(connected => {
-            if (connected) setInterval(loadTrack, 1000);
+        function renderState(state) {
+            currentState = state;
+            const telemetry = state.telemetry;
+            const session = state.session;
+            const metrics = state.metrics || {};
+            const connected = state.connection.connected;
+            byId('rail-km').textContent = telemetry?.railKm || '—';
+            byId('connection-status').textContent = connected ? `${state.connection.mode}: подключена` : 'нет связи';
+            byId('connection-status').classList.toggle('bad',!connected);
+            byId('rail-offset').textContent = telemetry ? `${telemetry.distanceToRailMeters} м` : '—';
+            byId('rail-offset').classList.toggle('bad',telemetry && !telemetry.onRail);
+            byId('phase-inline').textContent = phaseLabels[state.phase] || state.phase;
+            byId('phase').textContent = phaseLabels[state.phase] || state.phase;
+            byId('session-id').textContent = session ? `Рейс ${session.id}` : 'Рейс не запущен';
+
+            const active = Boolean(session?.active);
+            byId('start-button').hidden = active;
+            byId('start-button').disabled = !connected || !telemetry?.onRail;
+            byId('active-actions').hidden = !active;
+            byId('pause-button').textContent = session?.paused ? 'ПРОДОЛЖИТЬ' : 'ПАУЗА';
+            byId('run-description').textContent = !connected ? 'Подключите ESP по USB Serial или запустите сервер с --emulator.' :
+                !telemetry?.onRail ? 'GPS находится за пределами выбранного участка пути.' :
+                active ? `Автоматический замер выполняется каждые ${state.config.measureEveryMeters} метров.` :
+                'GPS сопоставлен с железной дорогой. Система готова к запуску.';
+
+            byId('metric-distance').textContent = formatNumber(metrics.distanceMeters || 0,' м');
+            byId('metric-measurements').textContent = metrics.measurements || 0;
+            byId('metric-defects').textContent = metrics.defects || 0;
+            byId('metric-marked').textContent = metrics.marked || 0;
+            byId('metric-average').textContent = formatNumber(metrics.averageHardness);
+            byId('metric-duration').textContent = formatDuration(metrics.durationSeconds);
+
+            byId('live-esp').textContent = connected ? 'подключена' : 'нет связи';
+            byId('live-port').textContent = state.connection.port || '—';
+            byId('live-gps').textContent = telemetry ? `${telemetry.rawLat.toFixed(6)}, ${telemetry.rawLon.toFixed(6)}` : '—';
+            byId('live-km').textContent = telemetry?.railKm || '—';
+            byId('live-offset').textContent = telemetry ? `${telemetry.distanceToRailMeters} м` : '—';
+            byId('live-speed').textContent = telemetry ? `${telemetry.speed.toFixed(2)} м/с` : '—';
+            byId('live-ticks').textContent = telemetry?.wheelTicks ?? '—';
+            byId('live-motor').textContent = telemetry?.motor || '—';
+            byId('live-hardness').textContent = state.latestMeasurement?.hardness ?? '—';
+            byId('live-result').textContent = state.latestMeasurement ? (state.latestMeasurement.status === 'defect' ? 'ДЕФЕКТ' : 'НОРМА') : '—';
+
+            const measurements = session?.measurements || [];
+            byId('measurements-body').replaceChildren(...measurements.slice().reverse().map((item,index) => {
+                const row = document.createElement('tr');
+                const values = [measurements.length-index,formatTime(item.measuredAt),item.railKm,`${item.distanceMeters.toFixed(1)} м`,item.hardness,item.status==='defect'?'ДЕФЕКТ':'НОРМА',item.marked?'ДА':'НЕТ'];
+                values.forEach((value,column) => { const cell=document.createElement('td'); cell.textContent=value; if(column===5) cell.className=item.status==='defect'?'defect':'ok'; row.append(cell); });
+                return row;
+            }));
+            renderChart(measurements);
+
+            const events = session?.events || [];
+            const eventBox = byId('events-list');
+            if (!events.length) eventBox.textContent = 'Событий пока нет';
+            else eventBox.replaceChildren(...events.slice().reverse().map(item => {
+                const row=document.createElement('div'); row.className='event';
+                const time=document.createElement('span'); time.className='event-time'; time.textContent=formatTime(item.at);
+                const message=document.createElement('span'); message.textContent=item.message; row.append(time,message); return row;
+            }));
+            renderMap(state);
+        }
+
+        async function pollState() {
+            try { const response=await fetch('/api/state',{cache:'no-store'}); renderState(await response.json()); }
+            catch (_) { byId('connection-status').textContent='сервер недоступен'; byId('connection-status').classList.add('bad'); }
+        }
+
+        byId('start-button').addEventListener('click', async () => { try { await api('/api/run/start'); await pollState(); } catch(e) { showError(e.message); } });
+        byId('pause-button').addEventListener('click', async () => { try { await api(currentState?.session?.paused?'/api/run/resume':'/api/run/pause'); await pollState(); } catch(e) { showError(e.message); } });
+        byId('stop-button').addEventListener('click', async () => { try { await api('/api/run/stop'); await pollState(); } catch(e) { showError(e.message); } });
+
+        const drawer=byId('drawer'), overlay=byId('overlay');
+        function setDrawer(open) { drawer.classList.toggle('open',open); overlay.classList.toggle('open',open); drawer.setAttribute('aria-hidden',String(!open)); }
+        byId('menu-open').addEventListener('click',()=>setDrawer(true));
+        byId('menu-close').addEventListener('click',()=>setDrawer(false));
+        overlay.addEventListener('click',()=>setDrawer(false));
+
+        let manualActive=null;
+        async function manual(command) {
+            try { await api('/api/manual',{command}); }
+            catch(e) { showError(e.message); }
+        }
+        document.querySelectorAll('[data-manual]').forEach(button => {
+            button.addEventListener('pointerdown',event => { event.preventDefault(); manualActive=button.dataset.manual; button.classList.add('active'); button.setPointerCapture(event.pointerId); manual(manualActive); });
+            ['pointerup','pointercancel','lostpointercapture'].forEach(name => button.addEventListener(name,()=>{
+                if(!manualActive)return; manualActive=null; button.classList.remove('active'); manual('stop');
+            }));
         });
+        byId('manual-stop').addEventListener('click',()=>{ manualActive=null; document.querySelectorAll('[data-manual]').forEach(b=>b.classList.remove('active')); manual('stop'); });
+        window.addEventListener('blur',()=>{ if(manualActive){manualActive=null;manual('stop');} });
 
-        function updateSensor(name, num, value, status) {
-            const id = name + num;
-            const valEl = document.getElementById('val-' + id);
-            const statEl = document.getElementById('stat-' + id);
-            
-            if (!valEl || !statEl) return;
-            
-            if (status === 'measuring') {
-                valEl.textContent = '...';
-                valEl.className = 'sensor-value waiting';
-                statEl.textContent = 'измерение...';
-                statEl.className = 'sensor-status waiting';
-            } else if (status === 'ready') {
-                valEl.textContent = value;
-                valEl.className = 'sensor-value ready';
-                statEl.textContent = 'готово';
-                statEl.className = 'sensor-status ready';
-            } else if (status === 'error') {
-                valEl.textContent = 'ERR';
-                valEl.className = 'sensor-value error';
-                statEl.textContent = 'ошибка';
-                statEl.className = 'sensor-status error';
-            }
-        }
-
-        const movementButtons = document.querySelectorAll('.movement-button');
-        const movementStatus = document.getElementById('movement-status');
-        let activeDirection = null;
-
-        function setMovementStatus(text, className = '') {
-            movementStatus.textContent = text;
-            movementStatus.className = 'movement-status' + (className ? ' ' + className : '');
-        }
-
-        async function sendMovement(command) {
-            try {
-                const response = await fetch('/' + command, {
-                    method: 'GET',
-                    cache: 'no-store',
-                    keepalive: command === 'stop'
-                });
-
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status);
-                }
-
-                log('>> движение: ' + command);
-                return true;
-            } catch (e) {
-                log('ОШИБКА ДВИЖЕНИЯ: ' + e.message);
-                setMovementStatus('ошибка команды', 'failed');
-                return false;
-            }
-        }
-
-        function startMovement(button, pointerId) {
-            if (activeDirection) return;
-
-            activeDirection = button.dataset.direction;
-            button.classList.add('active');
-
-            if (pointerId !== undefined) {
-                button.setPointerCapture(pointerId);
-            }
-
-            setMovementStatus(
-                activeDirection === 'forward' ? 'движение вперёд' : 'движение назад',
-                'moving'
-            );
-            sendMovement(activeDirection);
-        }
-
-        function stopMovement() {
-            if (!activeDirection) return;
-
-            activeDirection = null;
-            movementButtons.forEach(button => button.classList.remove('active'));
-            setMovementStatus('остановлен');
-            sendMovement('stop');
-        }
-
-        movementButtons.forEach(button => {
-            button.addEventListener('pointerdown', event => {
-                event.preventDefault();
-                startMovement(button, event.pointerId);
-            });
-            button.addEventListener('pointerup', stopMovement);
-            button.addEventListener('pointercancel', stopMovement);
-            button.addEventListener('lostpointercapture', stopMovement);
-            button.addEventListener('pointerleave', event => {
-                if (event.pointerType === 'mouse') stopMovement();
-            });
-            button.addEventListener('contextmenu', event => event.preventDefault());
-            button.addEventListener('keydown', event => {
-                if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
-                    event.preventDefault();
-                    startMovement(button);
-                }
-            });
-            button.addEventListener('keyup', event => {
-                if (event.key === ' ' || event.key === 'Enter') {
-                    event.preventDefault();
-                    stopMovement();
-                }
-            });
-        });
-
-        window.addEventListener('blur', stopMovement);
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) stopMovement();
-        });
-
-        async function send() {
-            const name = document.getElementById('name').value.toUpperCase();
-            const num = document.getElementById('num').value;
-            const cmd = document.getElementById('cmd').value.toUpperCase();
-            
-            log('>> |' + name + num + ':' + cmd + ';');
-            
-            try {
-                await fetch('/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, num, cmd })
-                });
-            } catch (e) {
-                log('ОШИБКА: ' + e.message);
-            }
-        }
-
-        // Опрашиваем сервер каждые 300 мс
-        let lastResponse = '';
-        
-        setInterval(async () => {
-            try {
-                const res = await fetch('/response');
-                const data = await res.json();
-                
-                if (!data.response || data.response === lastResponse) return;
-                lastResponse = data.response;
-                
-                log('<< ' + data.response);
-                
-                const match = data.response.match(/\|([TPGD])([01]):([MR\d]+);/);
-                if (!match) return;
-                
-                const [, name, num, value] = match;
-                
-                if (value === 'M') {
-                    updateSensor(name, num, null, 'measuring');
-                } else {
-                    updateSensor(name, num, value, 'ready');
-                }
-                
-            } catch (e) {
-                // сервер не отвечает
-            }
-        }, 300);
+        loadRailway().catch(error=>showError('Карта: '+error.message));
+        pollState();
+        setInterval(pollState,500);
     </script>
 </body>
 </html>
