@@ -43,8 +43,8 @@ void motDriveCorrection(Adafruit_PWMServoDriver* pwm,
 }
 
 void motBegin(Adafruit_PWMServoDriver* pwm){
-  pwm->begin();
-  Wire.begin();
+  Wire.begin(41, 42);
+  pwm->begin(); 
   pwm->setPWMFreq(PWM_FREQ);
   motStopAll(pwm);
 }

@@ -1,49 +1,66 @@
 #include <WiFi.h>
 #include <WebServer.h>
+#include <WiFiUdp.h>
+
 #include "helper.h"
 #include "motor.h"
 #include "regulator.h"
+#include "sensor.h"
 
 const char *ssid = "Kvant";
 const char *password = "KvantKvant";  
+const int UDP_PORT = 8888;
 
 // Настройки статического IP-адреса
-// IPAddress local_IP(10,233,133,105);  // Желаемый IP-адрес для ESP32
-// IPAddress gateway(10,233,133, 1);     // Шлюз
-// IPAddress subnet(255, 255, 255, 0);    // Мас ка подсети
+IPAddress local_IP(192, 168, 1, 134);  // Желаемый IP-адрес для ESP32
+IPAddress gateway(192, 168, 1, 1);     // Шлюз
+IPAddress subnet(255, 255, 255, 0);    // Мас ка подсети
+IPAddress bcast_IP(255,255,255, 255);
 
 WebServer server(80);
+WiFiUDP udp;
 Adafruit_PWMServoDriver motorPwm = Adafruit_PWMServoDriver();
 
-
 typedef enum{
+  ST_SET_H_CONTROL,
+  ST_H_CONTROL,
+  ST_SET_AUTO,
   ST_SET_ON_RAIL,
   ST_ON_RAIL,
   ST_SET_FOLD,
   ST_FOLD,
-  ST_DRIVE
+  ST_DRIVE,
+  ST_OBST_DETECTED
 }states_t;
 
 const char* stateList[] = {
+  "ST_SET_H_CONTROL",
+  "ST_H_CONTROL",
+  "ST_SET_AUTO",
   "ST_SET_ON_RAIL",
   "ST_ON_RAIL",
   "ST_SET_FOLD",
   "ST_FOLD",
-  "ST_DRIVE"
+  "ST_DRIVE",
+  "ST_OBST_DETECTED"
 };
 
-typedef struct{
-  bool auto_mode = false;
-  bool alarm = false;
-  bool obstacleDetected = false;
-  bool trainRunning = false;
-  uint8_t batteryPercent;
-  float batteryVoltage;
-  float distance;
-  int sensorValue;
-}info_t;
+typedef struct {
+  bool autoM = false;
+  bool sirenOn = false;
+  bool markOn = false;  // промаркировать
+  bool alarm = false;                     
+  bool trRun = false;
 
-states_t machineState;
+  states_t mSt = ST_SET_H_CONTROL;     // Состояние машины
+  uint32_t enc;                           // Количество импульсов с энкодера
+  float bV;                               // Напряжение батареи
+  bool obst = false;                      // Препятствие
+  uint16_t dist;                           // Дистанция с датчика расстояния
+  uint16_t sL[2][8];                      // x и y с левого датчика
+  uint16_t sR[2][8];                      // x и y с правого датчика
+
+} info_t;
 info_t info;
 
 void handleRoot(){
@@ -53,31 +70,29 @@ void handleRoot(){
 
 void sendStatus() {
   String j = "{";
-  j += "\"batteryPercent\":"   + String(info.batteryPercent) + ",";
-  j += "\"batteryVoltage\":"   + String(info.batteryVoltage, 2) + ",";
-  j += "\"distanceMeters\":"   + String(info.distance) + ",";
-  j += "\"obstacleDetected\":" + String(info.obstacleDetected ? "true" : "false") + ",";
-  j += "\"sensorValue\":"      + String(info.sensorValue) + ",";
-  j += "\"autoMode\":"         + String(info.auto_mode ? "true" : "false") + ",";
-  j += "\"alarm\":"            + String(info.alarm ? "true" : "false") + ",";
-  j += "\"trainRunning\":"     + String(info.trainRunning ? "true" : "false") + ",";
-  j += "\"machineState\":\""   + String(stateList[machineState]) + "\"";
+  j += "\"auto\":"    + String(info.autoM  ? "true" : "false") + ",";
+  j += "\"alarm\":"   + String(info.alarm  ? "true" : "false") + ",";
+  j += "\"trRun\":"   + String(info.trRun  ? "true" : "false") + ",";
+  j += "\"sirenOn\":" + String(info.sirenOn ? "true" : "false");
   j += "}";
+  server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json", j);
 }
 
 void handleMode() {
-if (!server.hasArg("auto")) {
-    server.send(400, "text/plain", "no auto");
-    return;
-  }
-  bool newMode = (server.arg("auto") == "1");
-  if (newMode != info.auto_mode) {
-    info.auto_mode = newMode;
-    info.trainRunning = false;
-  }
-  Serial.printf("[deviceMode] %s\n", info.auto_mode ? "AUTO_CONTROL" : "HAND_CONTROL");
-  sendStatus();
+  if (!server.hasArg("auto")) {
+      server.send(400, "text/plain", "no auto");
+      return;
+    }
+    bool newMode = (server.arg("auto") == "1");
+    if (newMode != info.autoM) {
+      info.autoM = newMode;
+      info.trRun = false;
+      info.mSt = (info.autoM ? ST_SET_AUTO : ST_SET_H_CONTROL);
+    }
+    Serial.printf("[autoM] %s\n", info.autoM ? "true" : "false");
+    Serial.printf("[mSt] %s\n", stateList[info.mSt]);
+    sendStatus();
 }
 
 void handleCommand() {
@@ -85,29 +100,52 @@ void handleCommand() {
     server.send(400, "text/plain", "no cmd");
     return;
   }
+
   String cmd = server.arg("cmd");
   Serial.printf("[CMD] %s\n", cmd.c_str());
 
-  // Авария работает всегда
+  // Авария — переключатель, работает всегда
   if (cmd == "alarm") {
     info.alarm = !info.alarm;
+
     if (info.alarm) {
-      info.trainRunning = false;
-      // остановить моторы 
+      info.trRun = false;
+      // Останавливаем моторы при аварии
       regStop();
     }
+
     sendStatus();
     return;
   }
 
-  // В аварии прочие команды игнорируем
+  // Сирена — кнопка в HTML видна всегда, поэтому обрабатываем до проверки alarm
+  if (cmd == "siren_on") {
+    info.sirenOn = true;
+    sendStatus();
+    return;
+  }
+
+  if (cmd == "siren_off") {
+    info.sirenOn = false;
+    sendStatus();
+    return;
+  }
+
+  // В аварии остальные команды игнорируем
   if (info.alarm) {
     sendStatus();
     return;
   }
 
+  // Маркировка дефекта — доступна в обоих режимах
+  if (cmd == "mark_defect") {
+    info.markOn = true;
+    sendStatus();
+    return;
+  }
+
   // ----------------- РУЧНОЙ РЕЖИМ -----------------
-  if (!info.auto_mode) {
+  if (!info.autoM) {
     if (cmd == "transport") {
       setTransport();
     }
@@ -118,10 +156,12 @@ void handleCommand() {
       setOnRail();
     }
     else if (cmd == "forward") {
+      Serial.println("writefor");
       motForward(&motorPwm, LEFT_WEEL, WEEL_SPEED);
       motForward(&motorPwm, RIGHT_WEEL, WEEL_SPEED);
     }
     else if (cmd == "backward") {
+      Serial.println("writeback");
       motBackward(&motorPwm, LEFT_WEEL, WEEL_SPEED);
       motBackward(&motorPwm, RIGHT_WEEL, WEEL_SPEED);
     }
@@ -133,13 +173,12 @@ void handleCommand() {
   // ----------------- АВТОНОМНЫЙ РЕЖИМ -----------------
   else {
     if (cmd == "train") {
-      info.trainRunning = !info.trainRunning;
+      info.trRun = !info.trRun;
     }
   }
 
   sendStatus();
 }
-
 void handleNotFound(){
   server.send(404, "text/plain", "404: Страница не найдена");
 }
@@ -150,12 +189,17 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
 
+  // разрядность 0-4095, диапозон до 3.1в
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
+
   motBegin(&motorPwm);
   regBegin(&motorPwm);
+  initDist();
 
-  // if (!WiFi.config(local_IP, gateway, subnet)) {
-  //   Serial.println("Ошибка: Не удалось настроить статический IP");
-  // }
+  if (!WiFi.config(local_IP, gateway, subnet)) {
+    Serial.println("Ошибка: Не удалось настроить статический IP");
+  }
 
   Serial.print("Подключение к ");
   Serial.println(ssid);
@@ -181,19 +225,54 @@ void setup() {
   // Запуск сервера
   server.begin();
 
+  softInitMotor();
+
 }
 
 void loop() {
   server.handleClient();
   regTick();
+  checkBat(&info.bV);
+  checkDist(&info.dist);
 
-  // ----------------- РУЧНОЙ РЕЖИМ -----------------
-  if(!info.auto_mode){
+  if(info.markOn){
+    motStopAll(&motorPwm); // стопим моторы
+    info.markOn = 0;
+    // TODO блокирующя функция маркировки
 
   }
-  // ----------------- АВТОНОМНЫЙ РЕЖИМ -----------------
-  else{
+  switch(info.mSt){
+    case ST_SET_H_CONTROL:
+    motStopAll(&motorPwm);
+    info.mSt = ST_H_CONTROL;
+    break;
 
+    case ST_H_CONTROL:
+    // ожидаем команд с вэба
+    break;
+
+    case ST_SET_AUTO:
+      motStopAll(&motorPwm);
+      info.mSt = ST_SET_ON_RAIL;
+    break;
+
+    case ST_SET_ON_RAIL:
+    break;
+
+    case ST_ON_RAIL:
+    break;
+
+    case ST_SET_FOLD:
+    break;
+
+    case ST_FOLD:
+    break;
+
+    case ST_DRIVE:
+    break;
+
+    case ST_OBST_DETECTED:
+    break;
   }
 
 }

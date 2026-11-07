@@ -15,7 +15,7 @@
 #define LEFT_WEEL 13,12
 #define RIGHT_WEEL 14,15
 
-#define WHEEL_SPEED 4090
+#define WEEL_SPEED 4090
 
 #define PWM_FREQ         1000
 #define MOTOR_MAX_SPEED  4095
