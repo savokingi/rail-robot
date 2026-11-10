@@ -9,8 +9,8 @@ const char *password = "KvantKvant";
 
 #define LEFT_HAND_POT   7
 #define RIGHT_HAND_POT  6
-#define LEFT_LEG_POT    5
-#define RIGHT_LEG_POT   4
+#define LEFT_LEG_POT    4
+#define RIGHT_LEG_POT   5
 
 #define LEG_SPEED    2000
 #define HAND_SPEED   2000
@@ -18,6 +18,7 @@ const char *password = "KvantKvant";
 
 #define PWM_FREQ        1000
 #define MOTOR_MAX_SPEED 4095
+
 
 Adafruit_PWMServoDriver motorPwm = Adafruit_PWMServoDriver();
 WebServer server(80);
@@ -216,6 +217,7 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
+  // разрядность 0-4095, диапозон до 3.1в
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
 
